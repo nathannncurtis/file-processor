@@ -1,17 +1,12 @@
 {
-    "network_folder": "Z:/",
+    "network_folder": "C:/Users/ncurtis/Desktop/WINCOPY/test",
     "profiles": {
-        "test2": {
-            "JPEG": "Z:/test2\\JPEG",
-            "TIFF": "Z:/test2\\TIFF",
-            "COMPLETE": "Z:/test2\\COMPLETE",
-            "status": "Active"
-        },
-        "test": {
-            "JPEG": "Z:/test\\JPEG",
-            "TIFF": "Z:/test\\TIFF",
-            "COMPLETE": "Z:/test\\COMPLETE",
+        "nathan": {
+            "JPEG": "C:/Users/ncurtis/Desktop/WINCOPY/test\\nathan\\JPEG",
+            "TIFF": "C:/Users/ncurtis/Desktop/WINCOPY/test\\nathan\\TIFF",
+            "COMPLETE": "C:/Users/ncurtis/Desktop/WINCOPY/test\\nathan\\COMPLETE",
             "status": "Active"
         }
-    }
+    },
+    "core_cap": 4
 }

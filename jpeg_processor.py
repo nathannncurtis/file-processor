@@ -96,8 +96,14 @@ class PDFHandler(FileSystemEventHandler):
 
             doc.close()
             print(f"Finished processing PDF: {destination_file}")
+
+            # Remove the original PDF after processing
+            os.remove(destination_file)
+            print(f"Removed original PDF: {destination_file}")
+
         except Exception as e:
             print(f"Error processing PDF to JPEG: {e}")
+
 
 if __name__ == "__main__":
     args = parse_args()

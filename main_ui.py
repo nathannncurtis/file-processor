@@ -5,6 +5,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton,
 from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QFont, QIcon, QCursor
 from job_manager import JobManager
+from time import sleep
+import time
 
 # Base directory handling for cx_Freeze
 BASE_DIR = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
@@ -28,11 +30,29 @@ class JobQueueManager(QThread):
             self.sleep(1)  # Polling interval
 
     def start_job(self, profile, processor_name, watch_dir, output_dir):
-        process = self.manager.start_processor(profile, processor_name, watch_dir, output_dir)
-        self.active_jobs.append((profile, processor_name, process))
-        process.wait()
-        self.active_jobs.remove((profile, processor_name, process))
-        self.job_finished_signal.emit()
+        """Process jobs one by one and ensure stability."""
+        # Wait for files to be stable before starting the job
+        stable_file = self.wait_for_stability(watch_dir)
+        if stable_file:
+            process = self.manager.start_processor(profile, processor_name, watch_dir, output_dir)
+            self.active_jobs.append((profile, processor_name, process))
+            process.wait()
+            self.active_jobs.remove((profile, processor_name, process))
+            self.job_finished_signal.emit()
+
+    def wait_for_stability(self, directory, wait_time=15):
+        """Waits until files in the directory are stable."""
+        last_snapshot = None
+        stable_start_time = time.time()
+        while True:
+            snapshot = {f: os.path.getsize(os.path.join(directory, f)) for f in os.listdir(directory)}
+            if snapshot == last_snapshot:
+                if time.time() - stable_start_time >= wait_time:
+                    return True
+            else:
+                stable_start_time = time.time()
+            last_snapshot = snapshot
+            sleep(5)
 
     def queue_job(self, profile, processor_name, watch_dir, output_dir):
         self.job_queue.append((profile, processor_name, watch_dir, output_dir))
