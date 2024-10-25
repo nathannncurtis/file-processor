@@ -3,10 +3,7 @@ import sys
 import json
 import shutil
 import subprocess
-<<<<<<< HEAD
 import multiprocessing
-=======
->>>>>>> b61d9cc (final version)
 
 class JobManager:
     def __init__(self, config_file):
@@ -19,11 +16,7 @@ class JobManager:
         """Loads the configuration from the JSON file."""
         if not os.path.exists(self.config_file):
             # If the config file doesn't exist, create a blank template
-<<<<<<< HEAD
             self.config = {"network_folder": "", "profiles": {}, "core_cap": multiprocessing.cpu_count()}
-=======
-            self.config = {"network_folder": "", "profiles": {}}
->>>>>>> b61d9cc (final version)
             self.save_config()
         else:
             with open(self.config_file, 'r') as f:
@@ -34,7 +27,6 @@ class JobManager:
         with open(self.config_file, 'w') as f:
             json.dump(self.config, f, indent=4)
 
-<<<<<<< HEAD
     def update_core_cap(self, new_core_cap):
         """Updates the core cap in the config file."""
         self.config['core_cap'] = new_core_cap
@@ -44,8 +36,6 @@ class JobManager:
         """Returns the current core cap from the config file."""
         return self.config.get('core_cap', multiprocessing.cpu_count())
 
-=======
->>>>>>> b61d9cc (final version)
     def update_network_folder(self, folder):
         """Updates the top-level network folder in the config."""
         self.config['network_folder'] = folder
@@ -83,7 +73,6 @@ class JobManager:
     def remove_profile(self, profile_name):
         """Removes a job profile and its corresponding directories."""
         base_folder = os.path.join(self.config['network_folder'], profile_name)
-<<<<<<< HEAD
 
         # Stop any running processors for this profile before removing
         self.stop_processor(profile_name)
@@ -94,22 +83,12 @@ class JobManager:
             print(f"Successfully removed profile folder: {base_folder}")
         except OSError as e:
             print(f"Error removing profile folder: {e}")
-=======
-        if os.path.exists(base_folder):
-            shutil.rmtree(base_folder)
->>>>>>> b61d9cc (final version)
 
         # Remove the profile from the configuration
         if profile_name in self.config['profiles']:
             del self.config['profiles'][profile_name]
             self.save_config()
 
-<<<<<<< HEAD
-=======
-        # Stop any running processors for this profile
-        self.stop_processor(profile_name)
-
->>>>>>> b61d9cc (final version)
     def pause_profile(self, profile_name):
         """Marks a profile as paused in the configuration and stops the processors."""
         if profile_name in self.config['profiles']:
@@ -138,11 +117,7 @@ class JobManager:
                 self.unpause_profile(profile_name)
 
     def start_processor(self, profile_name, processor_name, watch_dir, output_dir):
-<<<<<<< HEAD
         """Start a processor (JPEG/TIFF) using the .py file."""
-=======
-        """Start a processor (JPEG/TIFF) using the .py file as a daemon."""
->>>>>>> b61d9cc (final version)
         if profile_name not in self.processes:
             self.processes[profile_name] = {}
 
@@ -152,7 +127,6 @@ class JobManager:
                 process = subprocess.Popen(
                     ['python', processor_name, '--watch-dir', watch_dir, '--output-dir', output_dir],
                     stdout=log,
-<<<<<<< HEAD
                     stderr=log
                 )
                 print(f"Started {processor_name} for profile {profile_name}, log output in {log_file}")
@@ -161,15 +135,6 @@ class JobManager:
             except Exception as e:
                 print(f"Error starting {processor_name} for profile {profile_name}: {e}")
                 return None  # Ensure we return None in case of error
-=======
-                    stderr=log,
-                    start_new_session=True  # Ensures the process runs in the background
-                )
-                print(f"Started {processor_name} for profile {profile_name}, log output in {log_file}")
-                self.processes[profile_name][processor_name] = process
-            except Exception as e:
-                print(f"Error starting {processor_name} for profile {profile_name}: {e}")
->>>>>>> b61d9cc (final version)
 
     def stop_processor(self, profile_name):
         """Stop any running processors for the given profile."""

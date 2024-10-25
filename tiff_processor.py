@@ -2,10 +2,6 @@ import os
 import time
 import shutil
 import sys
-<<<<<<< HEAD
-=======
-import threading
->>>>>>> b61d9cc (final version)
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import fitz  # PyMuPDF
@@ -28,30 +24,18 @@ class PDFJPEGHandler(FileSystemEventHandler):
         if event.is_directory:
             self.process_directory(event.src_path)
         elif event.src_path.lower().endswith(".pdf"):
-<<<<<<< HEAD
             self.process_pdf(event.src_path)
         elif event.src_path.lower().endswith(".jpeg") or event.src_path.lower().endswith(".jpg"):
             self.process_jpeg(event.src_path)
-=======
-            threading.Thread(target=self.process_pdf, args=(event.src_path,)).start()
-        elif event.src_path.lower().endswith(".jpeg") or event.src_path.lower().endswith(".jpg"):
-            threading.Thread(target=self.process_jpeg, args=(event.src_path,)).start()
->>>>>>> b61d9cc (final version)
 
     def process_directory(self, folder_path):
         for root, dirs, files in os.walk(folder_path):
             for file in files:
                 full_path = os.path.join(root, file)
                 if file.lower().endswith(".pdf"):
-<<<<<<< HEAD
                     self.process_pdf(full_path)
                 elif file.lower().endswith(".jpeg") or file.lower().endswith(".jpg"):
                     self.process_jpeg(full_path)
-=======
-                    threading.Thread(target=self.process_pdf, args=(full_path,)).start()
-                elif file.lower().endswith(".jpeg") or file.lower().endswith(".jpg"):
-                    threading.Thread(target=self.process_jpeg, args=(full_path,)).start()
->>>>>>> b61d9cc (final version)
 
         self.move_folder(folder_path)
 
@@ -96,7 +80,6 @@ class PDFJPEGHandler(FileSystemEventHandler):
             page_digits = len(str(total_pages))
 
             for page_num in range(total_pages):
-<<<<<<< HEAD
                 page = doc.load_page(page_num)
                 pix = page.get_pixmap(dpi=200)
 
@@ -106,58 +89,22 @@ class PDFJPEGHandler(FileSystemEventHandler):
 
                 output_tiff = os.path.join(destination_folder, f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.tif")
                 img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
-=======
-                threading.Thread(target=self.save_tiff, args=(doc, destination_folder, pdf_file, page_num, page_digits)).start()
->>>>>>> b61d9cc (final version)
 
             doc.close()
         except Exception as e:
             print(f"Error processing PDF to TIFF: {e}")
 
-<<<<<<< HEAD
     def process_jpeg(self, jpeg_file):
         try:
-=======
-    def save_tiff(self, doc, destination_folder, pdf_file, page_num, page_digits):
-        page = doc.load_page(page_num)
-        pix = page.get_pixmap(dpi=200)
-
-        img = Image.open(io.BytesIO(pix.tobytes("ppm")))
-        img = img.convert("L")
-        img = img.point(lambda x: 0 if x < 128 else 255, '1')
-
-        output_tiff = os.path.join(destination_folder, f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.tif")
-        img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
-        print(f"Saved TIFF: {output_tiff}")
-
-    def process_jpeg(self, jpeg_file):
-        try:
-            # Open and convert JPEG to black-and-white
->>>>>>> b61d9cc (final version)
             img = Image.open(jpeg_file)
             img = img.convert("L")
             img = img.point(lambda x: 0 if x < 128 else 255, '1')
 
-<<<<<<< HEAD
             destination_folder = os.path.join(self.output_directory, os.path.relpath(os.path.dirname(jpeg_file), watch_directory))
             os.makedirs(destination_folder, exist_ok=True)
 
             output_tiff = os.path.join(destination_folder, f"{os.path.splitext(os.path.basename(jpeg_file))[0]}.tif")
             img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
-=======
-            # Define the output TIFF file path
-            destination_folder = os.path.join(self.output_directory, os.path.relpath(os.path.dirname(jpeg_file), watch_directory))
-            os.makedirs(destination_folder, exist_ok=True)
-            
-            output_tiff = os.path.join(destination_folder, f"{os.path.splitext(os.path.basename(jpeg_file))[0]}.tif")
-            img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
-            print(f"Saved TIFF: {output_tiff}")
-
-            # After successfully saving the TIFF, delete the original JPEG
-            os.remove(jpeg_file)
-            print(f"Original JPEG removed: {jpeg_file}")
-
->>>>>>> b61d9cc (final version)
         except Exception as e:
             print(f"Error processing JPEG to TIFF: {e}")
 

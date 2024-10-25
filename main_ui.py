@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 import multiprocessing
 import os
 import sys
@@ -95,18 +94,6 @@ class ProfileNameDialog(QDialog):
 
     def get_value(self):
         return self.profile_input.text()
-=======
-import sys
-import os
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QListWidget, QVBoxLayout, QWidget, QLabel, QInputDialog, QSpacerItem, QSizePolicy, QSystemTrayIcon, QMenu, QAction
-from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtGui import QFont, QIcon
-from job_manager import JobManager
-
-BASE_DIR = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
-ICON_PATH = os.path.join(BASE_DIR, 'file_processor.ico')
->>>>>>> b61d9cc (final version)
 
 class MainUI(QMainWindow):
     def __init__(self):
@@ -114,7 +101,6 @@ class MainUI(QMainWindow):
         self.setWindowTitle("File Processor")
         self.setGeometry(100, 100, 600, 400)
 
-<<<<<<< HEAD
         self.core_count = multiprocessing.cpu_count()
         self.core_cap = self.core_count
         self.manager = JobManager(CONFIG_FILE)
@@ -170,15 +156,6 @@ class MainUI(QMainWindow):
         icon_path = os.path.join(BASE_DIR, 'processor.ico')
         self.setWindowIcon(QIcon(icon_path))
 
-=======
-        self.tray_icon = None  # Placeholder for system tray icon
-        self.create_tray_icon()
-
-        self.manager = JobManager(CONFIG_FILE)
-        self.network_folder = self.manager.config.get('network_folder', '')
-
-        # UI Elements styling and layout
->>>>>>> b61d9cc (final version)
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #2e2e2e;
@@ -208,29 +185,17 @@ class MainUI(QMainWindow):
             }
         """)
 
-<<<<<<< HEAD
         layout = QVBoxLayout()
 
-=======
->>>>>>> b61d9cc (final version)
         folder_label_font = QFont()
         folder_label_font.setPointSize(12)
         folder_label_font.setBold(True)
 
-<<<<<<< HEAD
-=======
-        layout = QVBoxLayout()
-
->>>>>>> b61d9cc (final version)
         self.folder_label = QLabel(f"Network Folder: {self.network_folder}", self)
         self.folder_label.setFont(folder_label_font)
         layout.addWidget(self.folder_label)
 
         set_folder_btn = QPushButton("Set Network Folder", self)
-<<<<<<< HEAD
-=======
-        set_folder_btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
->>>>>>> b61d9cc (final version)
         layout.addWidget(set_folder_btn)
         set_folder_btn.clicked.connect(self.set_network_folder)
 
@@ -252,13 +217,10 @@ class MainUI(QMainWindow):
         layout.addWidget(remove_job_btn)
         remove_job_btn.clicked.connect(self.remove_job)
 
-<<<<<<< HEAD
         self.core_cap_btn = QPushButton(f"Set Core Cap (Currently: {self.core_cap})", self)
         layout.addWidget(self.core_cap_btn)
         self.core_cap_btn.clicked.connect(self.set_core_cap)
 
-=======
->>>>>>> b61d9cc (final version)
         layout.addSpacerItem(QSpacerItem(0, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
         toggle_status_btn = QPushButton("Pause/Unpause Job", self)
@@ -271,7 +233,6 @@ class MainUI(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(10)
 
-<<<<<<< HEAD
     def init_menu(self):
         """Initialize the file menu with a quit option."""
         menubar = self.menuBar()
@@ -313,8 +274,6 @@ class MainUI(QMainWindow):
             2000
         )
 
-=======
->>>>>>> b61d9cc (final version)
     def set_network_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Network Folder")
         if folder:
@@ -322,20 +281,13 @@ class MainUI(QMainWindow):
             self.folder_label.setText(f"Network Folder: {self.network_folder}")
             self.manager.update_network_folder(folder)
             self.load_profiles()
-<<<<<<< HEAD
             self.update_profile_status_menu()
 
     def load_profiles(self):
-=======
-
-    def load_profiles(self):
-        """Loads job profiles into the list with their active/paused status."""
->>>>>>> b61d9cc (final version)
         self.job_list.clear()
         for profile, details in self.manager.get_profiles_with_status().items():
             status = details['status']
             self.job_list.addItem(f"{profile} - {status}")
-<<<<<<< HEAD
         self.update_profile_status_menu()
 
     def add_job(self):
@@ -352,26 +304,10 @@ class MainUI(QMainWindow):
         selected_item = self.job_list.currentItem()
         if selected_item:
             profile_name = selected_item.text().split(" - ")[0]
-=======
-
-    def add_job(self):
-        """Adds a new job profile with a user-defined name."""
-        profile_name, ok = QInputDialog.getText(self, "New Job Profile", "Enter Profile Name:")
-        if ok and profile_name:
-            self.manager.add_profile(profile_name)
-            self.load_profiles()
-
-    def remove_job(self):
-        """Removes the selected job profile."""
-        selected_item = self.job_list.currentItem()
-        if selected_item:
-            profile_name = selected_item.text().split(" - ")[0]  # Extract profile name
->>>>>>> b61d9cc (final version)
             self.manager.remove_profile(profile_name)
             self.load_profiles()
 
     def toggle_job_status(self):
-<<<<<<< HEAD
         selected_item = self.job_list.currentItem()
         if selected_item:
             profile_name = selected_item.text().split(" - ")[0]
@@ -389,53 +325,6 @@ class MainUI(QMainWindow):
 
     def update_core_cap_button(self):
         self.core_cap_btn.setText(f"Set Core Cap (Currently: {self.core_cap})")
-=======
-        """Toggles the status (active/paused) of the selected job profile."""
-        selected_item = self.job_list.currentItem()
-        if selected_item:
-            profile_name = selected_item.text().split(" - ")[0]  # Extract profile name
-            self.manager.toggle_profile_status(profile_name)
-            self.load_profiles()
-
-    def create_tray_icon(self):
-        """Sets up the system tray icon and menu."""
-        tray_menu = QMenu()
-        restore_action = QAction("Restore", self)
-        restore_action.triggered.connect(self.show_window)
-        tray_menu.addAction(restore_action)
-
-        exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.close_application)
-        tray_menu.addAction(exit_action)
-
-        self.tray_icon = QSystemTrayIcon(QIcon(ICON_PATH), self)
-        self.tray_icon.setContextMenu(tray_menu)
-        self.tray_icon.setToolTip("File Processor")
-        self.tray_icon.activated.connect(self.on_tray_icon_activated)
-        self.tray_icon.show()
-
-    def on_tray_icon_activated(self, reason):
-        """Handles the tray icon click event."""
-        if reason == QSystemTrayIcon.Trigger:
-            self.show_window()
-
-    def show_window(self):
-        """Restores the main window from the tray."""
-        self.showNormal()
-        self.activateWindow()
-
-    def closeEvent(self, event):
-        """Override the close event to minimize to tray."""
-        event.ignore()
-        self.hide()
-        self.tray_icon.showMessage("File Processor", "Application minimized to tray.", QSystemTrayIcon.Information, 2000)
-
-    def close_application(self):
-        """Exits the application from the tray."""
-        self.tray_icon.hide()
-        self.manager.shutdown()  # Properly shutdown job manager
-        QApplication.instance().quit()
->>>>>>> b61d9cc (final version)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
