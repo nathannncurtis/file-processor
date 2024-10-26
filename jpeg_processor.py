@@ -30,7 +30,7 @@ class PDFHandler(FileSystemEventHandler):
                 print(f"PDF detected: {event.src_path}, starting processing.")
                 self.process_pdf(event.src_path)
 
-    def wait_for_folder_stability(self, folder_path, stability_duration=30):
+    def wait_for_folder_stability(self, folder_path, stability_duration=10):
         """Ensure the folder is stable (no changes) for a specified duration before processing."""
         stable_start_time = None
 
@@ -58,6 +58,46 @@ class PDFHandler(FileSystemEventHandler):
             else:
                 stable_start_time = None
                 print("Changes detected in folder. Restarting stability check.")
+
+    def merge_folders(self, src_folder, dest_folder):
+        """Merge src_folder into dest_folder, handling potential filename conflicts and permissions."""
+        if not os.path.exists(dest_folder):
+            try:
+                shutil.move(src_folder, dest_folder)
+            except PermissionError:
+                print(f"Permission denied when trying to move {src_folder} to {dest_folder}. Retrying...")
+                time.sleep(5)
+                shutil.move(src_folder, dest_folder)
+        else:
+            for root, _, files in os.walk(src_folder):
+                relative_path = os.path.relpath(root, src_folder)
+                target_folder = os.path.join(dest_folder, relative_path)
+                os.makedirs(target_folder, exist_ok=True)
+
+                for file in files:
+                    src_file = os.path.join(root, file)
+                    dest_file = os.path.join(target_folder, file)
+
+                    # Check if file exists before moving
+                    if not os.path.exists(src_file):
+                        print(f"File not found: {src_file}. Skipping.")
+                        continue
+
+                    if os.path.exists(dest_file):
+                        # Handle conflicts by renaming or using a subfolder
+                        conflict_folder = os.path.join(target_folder, "conflicts")
+                        os.makedirs(conflict_folder, exist_ok=True)
+                        dest_file = os.path.join(conflict_folder, file)
+
+                    try:
+                        shutil.move(src_file, dest_file)
+                    except PermissionError:
+                        print(f"Permission denied when trying to move {src_file} to {dest_file}. Retrying...")
+                        time.sleep(5)
+                        shutil.move(src_file, dest_file)
+
+            # Clean up the original source folder if empty
+            shutil.rmtree(src_folder, ignore_errors=True)
 
     def process_directory(self, folder_path):
         """Process files in the folder and ensure they are handled safely."""
