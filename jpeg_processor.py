@@ -4,7 +4,7 @@ import shutil
 import sys
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-import fitz  # PyMuPDF
+import fitz
 from PIL import Image
 import io
 import argparse
@@ -97,7 +97,6 @@ class PDFHandler(FileSystemEventHandler):
             doc.close()
             print(f"Finished processing PDF: {destination_file}")
 
-            # Remove the original PDF after processing
             os.remove(destination_file)
             print(f"Removed original PDF: {destination_file}")
 
