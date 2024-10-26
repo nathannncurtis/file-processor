@@ -46,7 +46,7 @@ class PDFJPEGHandler(FileSystemEventHandler):
                 print("Changes detected in folder. Restarting stability check.")
 
     def process_directory(self, folder_path):
-        """Once the folder is stable, process each file in the folder and merge the entire folder to output directory."""
+        """Once the folder is stable, process each file in the folder and move to output directory."""
         if not self.wait_for_folder_stability(folder_path, stability_duration=30):
             print(f"Stability check failed for folder: {folder_path}")
             return
@@ -54,21 +54,19 @@ class PDFJPEGHandler(FileSystemEventHandler):
         # Process each file in the folder
         for file in os.listdir(folder_path):
             file_path = os.path.join(folder_path, file)
-            if file.lower().endswith(".pdf"):
-                self.process_pdf(file_path)
-            elif file.lower().endswith((".jpeg", ".jpg")):
+            if file.lower().endswith((".jpeg", ".jpg")):
                 self.process_jpeg(file_path)
 
-        # Merge the folder into the output directory
+        # Merge the processed folder into the output directory
         self.merge_folders(folder_path, os.path.join(self.output_directory, os.path.basename(folder_path)))
-        print(f"Folder merged to output: {os.path.join(self.output_directory, os.path.basename(folder_path))}")
+        print(f"Folder processed and merged to output: {os.path.join(self.output_directory, os.path.basename(folder_path))}")
 
     def merge_folders(self, src_folder, dest_folder):
-        """Merge src_folder into dest_folder, overwriting any files with the same name."""
+        """Merge src_folder into dest_folder, handling potential filename conflicts."""
         if not os.path.exists(dest_folder):
             shutil.move(src_folder, dest_folder)
         else:
-            # Move each file individually to merge contents
+            # Walk through the source folder and move items
             for root, _, files in os.walk(src_folder):
                 relative_path = os.path.relpath(root, src_folder)
                 target_folder = os.path.join(dest_folder, relative_path)
@@ -77,9 +75,16 @@ class PDFJPEGHandler(FileSystemEventHandler):
                 for file in files:
                     src_file = os.path.join(root, file)
                     dest_file = os.path.join(target_folder, file)
+
+                    # Handle naming conflicts by placing conflicting files in a subfolder
+                    if os.path.exists(dest_file):
+                        conflict_folder = os.path.join(target_folder, "conflicts")
+                        os.makedirs(conflict_folder, exist_ok=True)
+                        dest_file = os.path.join(conflict_folder, file)
+
                     shutil.move(src_file, dest_file)
 
-            shutil.rmtree(src_folder)  # Remove the original source folder after merging
+            shutil.rmtree(src_folder)
 
     def process_pdf(self, pdf_file):
         """Converts each page of the PDF to a TIFF file and removes the original PDF after processing."""
