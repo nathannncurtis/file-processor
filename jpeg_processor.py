@@ -31,57 +31,42 @@ class PDFHandler(FileSystemEventHandler):
                 self.process_pdf(event.src_path)
 
     def process_directory(self, folder_path):
-        print(f"Processing directory: {folder_path}")
-        for root, dirs, files in os.walk(folder_path):
-            for file in files:
-                if file.lower().endswith(".pdf"):
-                    full_path = os.path.join(root, file)
-                    print(f"PDF found in directory: {full_path}")
-                    self.process_pdf(full_path)
-
-    def process_pdf(self, pdf_file):
-        print(f"Starting PDF processing: {pdf_file}")
-        file_ready = False
-        retry_count = 0
-        max_retries = 4
-        stable_duration = 5
-
-        while not file_ready and retry_count < max_retries:
-            try:
-                initial_size = os.path.getsize(pdf_file)
-                print(f"Initial size: {initial_size}")
-                time.sleep(stable_duration)
-                current_size = os.path.getsize(pdf_file)
-                print(f"Current size after {stable_duration} seconds: {current_size}")
-                if initial_size == current_size:
-                    file_ready = True
-                    print(f"File is ready for processing: {pdf_file}")
-                else:
-                    retry_count += 1
-                    print(f"File still changing, retrying {retry_count}/{max_retries}")
-            except FileNotFoundError:
-                print(f"File not found, skipping: {pdf_file}")
-                return
-
-        if not file_ready:
-            print(f"File not ready after retries, skipping: {pdf_file}")
+        """Process files in the folder and ensure they are handled safely."""
+        if not self.wait_for_folder_stability(folder_path, stability_duration=30):
+            print(f"Stability check failed for folder: {folder_path}")
             return
 
-        relative_path = os.path.relpath(os.path.dirname(pdf_file), watch_directory)
-        destination_folder = os.path.join(self.output_directory, relative_path)
-        os.makedirs(destination_folder, exist_ok=True)
-        print(f"Created destination folder: {destination_folder}")
+        # Verify folder exists before attempting to process
+        if not os.path.exists(folder_path):
+            print(f"Folder no longer exists: {folder_path}. Skipping processing.")
+            return
 
-        destination_file = os.path.join(destination_folder, os.path.basename(pdf_file))
-        shutil.move(pdf_file, destination_file)
-        print(f"Moved PDF to destination: {destination_file}")
+        # Process each file in the folder
+        for file in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, file)
+            if file.lower().endswith((".jpeg", ".jpg")):
+                self.process_jpeg(file_path)
+            elif file.lower().endswith(".pdf"):
+                self.process_pdf(file_path)
 
+        # Merge or move the processed folder to the output directory
+        destination_folder = os.path.join(self.output_directory, os.path.basename(folder_path))
+        self.merge_folders(folder_path, destination_folder)
+        print(f"Folder processed and merged to output: {destination_folder}")
+
+    def process_pdf(self, pdf_file):
+        """Converts each page of the PDF to a JPEG file and removes the original PDF after processing."""
         try:
-            doc = fitz.open(destination_file)
+            # Verify the file still exists before processing
+            if not os.path.exists(pdf_file):
+                print(f"File no longer exists: {pdf_file}. Skipping processing.")
+                return
+
+            doc = fitz.open(pdf_file)
             total_pages = len(doc)
             page_digits = len(str(total_pages))
 
-            print(f"Processing {total_pages} pages in PDF: {destination_file}")
+            print(f"Processing {total_pages} pages in PDF: {pdf_file}")
             for page_num in range(total_pages):
                 page = doc.load_page(page_num)
                 pix = page.get_pixmap(dpi=200)
@@ -90,19 +75,23 @@ class PDFHandler(FileSystemEventHandler):
                 if img.mode != "RGB":
                     img = img.convert("RGB")
 
-                output_jpeg = os.path.join(destination_folder, f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.jpg")
+                output_jpeg = os.path.join(
+                    os.path.dirname(pdf_file),
+                    f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.jpg"
+                )
                 img.save(output_jpeg, "JPEG", quality=60, dpi=(200, 200))
                 print(f"Saved JPEG: {output_jpeg}")
 
             doc.close()
-            print(f"Finished processing PDF: {destination_file}")
+            print(f"Finished processing PDF: {pdf_file}")
 
-            os.remove(destination_file)
-            print(f"Removed original PDF: {destination_file}")
+            # Remove the original PDF after processing, with a verification check
+            if os.path.exists(pdf_file):
+                os.remove(pdf_file)
+                print(f"Removed original PDF: {pdf_file}")
 
         except Exception as e:
             print(f"Error processing PDF to JPEG: {e}")
-
 
 if __name__ == "__main__":
     args = parse_args()
