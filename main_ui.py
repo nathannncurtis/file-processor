@@ -301,8 +301,21 @@ class MainUI(QMainWindow):
             profile_name = dialog.get_value()
             if profile_name:
                 self.manager.add_profile(profile_name)
-                self.queue_manager.queue_job(profile_name, "jpeg_processor.py", self.manager.config['profiles'][profile_name]['JPEG'], self.manager.config['profiles'][profile_name]['COMPLETE'])
-                self.queue_manager.queue_job(profile_name, "tiff_processor.py", self.manager.config['profiles'][profile_name]['TIFF'], self.manager.config['profiles'][profile_name]['COMPLETE'])
+
+                # Determine if we're running as an executable
+                if getattr(sys, 'frozen', False):
+                    # Running as an executable, use .exe files
+                    jpeg_processor_exe = os.path.join(os.path.dirname(sys.executable), "jpeg_processor.exe")
+                    tiff_processor_exe = os.path.join(os.path.dirname(sys.executable), "tiff_processor.exe")
+                else:
+                    # Running as a script, use .py files
+                    jpeg_processor_exe = "jpeg_processor.py"
+                    tiff_processor_exe = "tiff_processor.py"
+
+                # Queue the jobs using the appropriate executable or script
+                self.queue_manager.queue_job(profile_name, jpeg_processor_exe, self.manager.config['profiles'][profile_name]['JPEG'], self.manager.config['profiles'][profile_name]['COMPLETE'])
+                self.queue_manager.queue_job(profile_name, tiff_processor_exe, self.manager.config['profiles'][profile_name]['TIFF'], self.manager.config['profiles'][profile_name]['COMPLETE'])
+                
                 self.load_profiles()
 
     def remove_job(self):
