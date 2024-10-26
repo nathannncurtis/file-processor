@@ -40,20 +40,6 @@ class JobQueueManager(QThread):
             self.active_jobs.remove((profile, processor_name, process))
             self.job_finished_signal.emit()
 
-    def wait_for_stability(self, directory, wait_time=15):
-        """Waits until files in the directory are stable."""
-        last_snapshot = None
-        stable_start_time = time.time()
-        while True:
-            snapshot = {f: os.path.getsize(os.path.join(directory, f)) for f in os.listdir(directory)}
-            if snapshot == last_snapshot:
-                if time.time() - stable_start_time >= wait_time:
-                    return True
-            else:
-                stable_start_time = time.time()
-            last_snapshot = snapshot
-            sleep(5)
-
     def queue_job(self, profile, processor_name, watch_dir, output_dir):
         self.job_queue.append((profile, processor_name, watch_dir, output_dir))
 
