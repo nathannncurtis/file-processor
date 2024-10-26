@@ -134,6 +134,7 @@ class MainUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("File Processor")
         self.setGeometry(100, 100, 600, 400)
+        self.setWindowIcon(QIcon("processor.ico"))
 
         self.core_count = multiprocessing.cpu_count()
         self.core_cap = self.core_count
