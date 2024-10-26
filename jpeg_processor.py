@@ -59,69 +59,52 @@ class PDFHandler(FileSystemEventHandler):
                 stable_start_time = None
                 print("Changes detected in folder. Restarting stability check.")
 
-    def merge_folders(self, src_folder, dest_folder):
-        """Merge src_folder into dest_folder, handling potential filename conflicts and permissions."""
+    def move_folder(self, src_folder, dest_folder):
+        """Move the entire source folder to the destination directory, merging if necessary."""
         if not os.path.exists(dest_folder):
             try:
                 shutil.move(src_folder, dest_folder)
+                print(f"Moved folder: {src_folder} to {dest_folder}")
             except PermissionError:
                 print(f"Permission denied when trying to move {src_folder} to {dest_folder}. Retrying...")
                 time.sleep(5)
                 shutil.move(src_folder, dest_folder)
         else:
-            for root, _, files in os.walk(src_folder):
-                relative_path = os.path.relpath(root, src_folder)
-                target_folder = os.path.join(dest_folder, relative_path)
-                os.makedirs(target_folder, exist_ok=True)
+            # If destination folder exists, merge contents
+            for item in os.listdir(src_folder):
+                src_item = os.path.join(src_folder, item)
+                dest_item = os.path.join(dest_folder, item)
 
-                for file in files:
-                    src_file = os.path.join(root, file)
-                    dest_file = os.path.join(target_folder, file)
-
-                    # Check if file exists before moving
-                    if not os.path.exists(src_file):
-                        print(f"File not found: {src_file}. Skipping.")
-                        continue
-
-                    if os.path.exists(dest_file):
-                        # Handle conflicts by renaming or using a subfolder
-                        conflict_folder = os.path.join(target_folder, "conflicts")
-                        os.makedirs(conflict_folder, exist_ok=True)
-                        dest_file = os.path.join(conflict_folder, file)
-
-                    try:
-                        shutil.move(src_file, dest_file)
-                    except PermissionError:
-                        print(f"Permission denied when trying to move {src_file} to {dest_file}. Retrying...")
-                        time.sleep(5)
-                        shutil.move(src_file, dest_file)
-
-            # Clean up the original source folder if empty
+                # Move or merge individual items
+                if os.path.isdir(src_item):
+                    shutil.move(src_item, dest_item)
+                else:
+                    shutil.move(src_item, dest_folder)
+            
+            # Remove the original source folder if empty
             shutil.rmtree(src_folder, ignore_errors=True)
+            print(f"Folder merged: {src_folder} into {dest_folder}")
 
     def process_directory(self, folder_path):
-        """Process files in the folder and ensure they are handled safely."""
+        """Move the folder, process each PDF, and then delete the original PDF after conversion."""
+        # Check if folder is stable
         if not self.wait_for_folder_stability(folder_path, stability_duration=30):
             print(f"Stability check failed for folder: {folder_path}")
             return
 
-        # Verify folder exists before attempting to process
-        if not os.path.exists(folder_path):
-            print(f"Folder no longer exists: {folder_path}. Skipping processing.")
-            return
-
-        # Process each file in the folder
-        for file in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file)
-            if file.lower().endswith((".jpeg", ".jpg")):
-                self.process_jpeg(file_path)
-            elif file.lower().endswith(".pdf"):
-                self.process_pdf(file_path)
-
-        # Merge or move the processed folder to the output directory
+        # Determine the destination path
         destination_folder = os.path.join(self.output_directory, os.path.basename(folder_path))
-        self.merge_folders(folder_path, destination_folder)
-        print(f"Folder processed and merged to output: {destination_folder}")
+        
+        # Move the entire folder to the output directory
+        self.move_folder(folder_path, destination_folder)
+        
+        # Process any PDFs found in the destination folder
+        for file in os.listdir(destination_folder):
+            file_path = os.path.join(destination_folder, file)
+            if file.lower().endswith(".pdf"):
+                self.process_pdf(file_path)
+        
+        print(f"Completed processing of folder: {destination_folder}")
 
     def process_pdf(self, pdf_file):
         """Converts each page of the PDF to a JPEG file and removes the original PDF after processing."""
