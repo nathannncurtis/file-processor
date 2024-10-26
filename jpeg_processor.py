@@ -30,6 +30,35 @@ class PDFHandler(FileSystemEventHandler):
                 print(f"PDF detected: {event.src_path}, starting processing.")
                 self.process_pdf(event.src_path)
 
+    def wait_for_folder_stability(self, folder_path, stability_duration=30):
+        """Ensure the folder is stable (no changes) for a specified duration before processing."""
+        stable_start_time = None
+
+        while True:
+            try:
+                initial_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            except FileNotFoundError:
+                print(f"Folder not found: {folder_path}. Retrying...")
+                return False
+
+            time.sleep(5)
+            try:
+                current_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            except FileNotFoundError:
+                print(f"Folder not found: {folder_path}. Retrying...")
+                return False
+
+            if initial_snapshot == current_snapshot:
+                if stable_start_time is None:
+                    stable_start_time = time.time()
+                    print("No changes detected in folder. Starting stability timer.")
+                elif time.time() - stable_start_time >= stability_duration:
+                    print("Folder stable for required duration.")
+                    return True
+            else:
+                stable_start_time = None
+                print("Changes detected in folder. Restarting stability check.")
+
     def process_directory(self, folder_path):
         """Process files in the folder and ensure they are handled safely."""
         if not self.wait_for_folder_stability(folder_path, stability_duration=30):
