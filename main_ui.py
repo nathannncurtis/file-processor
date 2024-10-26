@@ -17,12 +17,12 @@ class JobQueueManager(QThread):
 
     def __init__(self, manager, core_cap):
         super().__init__()
+        self.active_processes = []  # Store references to running processes
         self.manager = manager
         self.core_cap = core_cap
         self.active_jobs = []
         self.job_queue = []
-        self.active_processes = []  # Store references to running processes
-
+        
     def run(self):
         while True:
             if len(self.active_jobs) < self.core_cap and self.job_queue:
@@ -37,8 +37,9 @@ class JobQueueManager(QThread):
             if getattr(sys, 'frozen', False):
                 # Use the .exe if running as a frozen app
                 exe_dir = os.path.dirname(sys.executable)
+                # Force replacement of .py with .exe
                 if processor_name.endswith('.py'):
-                    processor_name = processor_name.replace('.py', '.exe')
+                    processor_name = os.path.splitext(processor_name)[0] + '.exe'
                 processor_path = os.path.join(exe_dir, processor_name)
             else:
                 # Use the .py directly if running as a script
