@@ -30,9 +30,18 @@ class PDFJPEGHandler(FileSystemEventHandler):
         stable_start_time = None
 
         while True:
-            initial_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            try:
+                initial_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            except FileNotFoundError:
+                print(f"Folder not found: {folder_path}. Retrying...")
+                return False
+
             time.sleep(5)
-            current_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            try:
+                current_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            except FileNotFoundError:
+                print(f"Folder not found: {folder_path}. Retrying...")
+                return False
 
             if initial_snapshot == current_snapshot:
                 if stable_start_time is None:
@@ -56,6 +65,8 @@ class PDFJPEGHandler(FileSystemEventHandler):
             file_path = os.path.join(folder_path, file)
             if file.lower().endswith((".jpeg", ".jpg")):
                 self.process_jpeg(file_path)
+            elif file.lower().endswith(".pdf"):
+                self.process_pdf(file_path)
 
         # Merge the processed folder into the output directory
         self.merge_folders(folder_path, os.path.join(self.output_directory, os.path.basename(folder_path)))
