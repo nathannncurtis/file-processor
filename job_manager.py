@@ -117,24 +117,33 @@ class JobManager:
                 self.unpause_profile(profile_name)
 
     def start_processor(self, profile_name, processor_name, watch_dir, output_dir):
-        """Start a processor (JPEG/TIFF) using the .py file."""
+        """Start a processor (JPEG/TIFF) using the appropriate .exe or .py file."""
         if profile_name not in self.processes:
             self.processes[profile_name] = {}
 
         log_file = f"{profile_name}_{processor_name}.log"
         with open(log_file, "w") as log:
             try:
+                # Check if running as an executable
+                if getattr(sys, 'frozen', False):
+                    exe_dir = os.path.dirname(sys.executable)
+                    if processor_name.endswith('.py'):
+                        processor_name = os.path.splitext(processor_name)[0] + '.exe'
+                    processor_path = os.path.join(exe_dir, processor_name)
+                else:
+                    processor_path = processor_name
+
+                # Start the processor
                 process = subprocess.Popen(
-                    ['python', processor_name, '--watch-dir', watch_dir, '--output-dir', output_dir],
-                    stdout=log,
-                    stderr=log
+                    [processor_path, '--watch-dir', watch_dir, '--output-dir', output_dir],
+                    stdout=log, stderr=log, creationflags=subprocess.CREATE_NO_WINDOW
                 )
                 print(f"Started {processor_name} for profile {profile_name}, log output in {log_file}")
                 self.processes[profile_name][processor_name] = process
                 return process  # Returning the process
             except Exception as e:
                 print(f"Error starting {processor_name} for profile {profile_name}: {e}")
-                return None  # Ensure we return None in case of error
+                return None
 
     def stop_processor(self, profile_name):
         """Stop any running processors for the given profile."""

@@ -335,12 +335,10 @@ class MainUI(QMainWindow):
 
                 # Determine if we're running as an executable
                 if getattr(sys, 'frozen', False):
-                    # Running as an executable, use .exe files
                     exe_dir = os.path.dirname(sys.executable)
                     jpeg_processor_exe = os.path.join(exe_dir, "jpeg_processor.exe")
                     tiff_processor_exe = os.path.join(exe_dir, "tiff_processor.exe")
                 else:
-                    # Running as a script, use .py files
                     jpeg_processor_exe = "jpeg_processor.py"
                     tiff_processor_exe = "tiff_processor.py"
 
