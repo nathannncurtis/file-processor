@@ -8,7 +8,6 @@ from job_manager import JobManager
 from time import sleep
 import time
 
-# Base directory handling for cx_Freeze
 BASE_DIR = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
 
