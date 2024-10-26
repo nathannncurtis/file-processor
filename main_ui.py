@@ -43,8 +43,11 @@ class JobQueueManager(QThread):
                 # Use the .py directly if running as a script
                 processor_path = processor_name
 
-            # Start the processor with subprocess
-            subprocess.Popen([processor_path, '--watch-dir', watch_dir, '--output-dir', output_dir])
+            # Start the processor as a daemon process (no terminal window)
+            subprocess.Popen(
+                [processor_path, '--watch-dir', watch_dir, '--output-dir', output_dir],
+                creationflags=subprocess.CREATE_NO_WINDOW
+            )
 
         except Exception as e:
             print(f"Failed to start job for {processor_name}: {e}")
