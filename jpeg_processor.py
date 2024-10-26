@@ -43,7 +43,7 @@ class PDFHandler(FileSystemEventHandler):
         print(f"Starting PDF processing: {pdf_file}")
         file_ready = False
         retry_count = 0
-        max_retries = 5
+        max_retries = 4
         stable_duration = 5
 
         while not file_ready and retry_count < max_retries:
