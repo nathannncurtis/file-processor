@@ -150,9 +150,8 @@ class MainUI(QMainWindow):
         self.center_on_cursor()
 
     def init_tray(self):
-        self.tray_icon = QSystemTrayIcon(self)
         icon_path = os.path.join(BASE_DIR, "processor.ico")
-        self.tray_icon.setIcon(QIcon(icon_path))
+        self.tray_icon = QSystemTrayIcon(QIcon(icon_path), self)
         self.tray_icon.setToolTip("File Processor App")
 
         self.tray_menu = QMenu(self)
@@ -303,7 +302,7 @@ class MainUI(QMainWindow):
     def closeEvent(self, event):
         """Override close event to minimize to tray."""
         event.ignore()
-        self.hide()
+        self.hide()  # Explicitly hide the window
         self.tray_icon.showMessage(
             "File Processor App",
             "Application minimized to tray. Right-click the tray icon for options.",
@@ -377,6 +376,8 @@ class MainUI(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)  # Prevent the app from quitting when the main window is closed
     window = MainUI()
     window.show()
     sys.exit(app.exec_())
+
