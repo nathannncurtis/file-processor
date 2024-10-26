@@ -21,6 +21,7 @@ class JobQueueManager(QThread):
         self.core_cap = core_cap
         self.active_jobs = []
         self.job_queue = []
+        self.active_processes = []  # Store references to running processes
 
     def run(self):
         while True:
@@ -30,7 +31,7 @@ class JobQueueManager(QThread):
             self.sleep(1)  # Polling interval
 
     def start_job(self, profile, processor_name, watch_dir, output_dir):
-        """Process jobs one by one and ensure stability."""
+        """Start a job and keep track of the process."""
         try:
             # Determine if running as an executable
             if getattr(sys, 'frozen', False):
@@ -44,13 +45,27 @@ class JobQueueManager(QThread):
                 processor_path = processor_name
 
             # Start the processor as a daemon process (no terminal window)
-            subprocess.Popen(
+            process = subprocess.Popen(
                 [processor_path, '--watch-dir', watch_dir, '--output-dir', output_dir],
                 creationflags=subprocess.CREATE_NO_WINDOW
             )
 
+            # Store the process so it can be terminated later
+            self.active_processes.append(process)
+
         except Exception as e:
             print(f"Failed to start job for {processor_name}: {e}")
+
+    def stop_all_processes(self):
+        """Terminate all active processes."""
+        for process in self.active_processes:
+            try:
+                process.terminate()  # Send termination signal
+                process.wait()  # Wait for the process to exit
+                print(f"Terminated process: {process.pid}")
+            except Exception as e:
+                print(f"Failed to terminate process: {e}")
+        self.active_processes.clear()  # Clear the list of active processes
 
     def queue_job(self, profile, processor_name, watch_dir, output_dir):
         self.job_queue.append((profile, processor_name, watch_dir, output_dir))
@@ -261,7 +276,7 @@ class MainUI(QMainWindow):
         file_menu.addAction(quit_action)
 
     def confirm_quit(self):
-        """Show a confirmation dialog before quitting."""
+        """Show a confirmation dialog before quitting and stop all background processes if confirmed."""
         reply_box = QMessageBox(self)
         reply_box.setWindowTitle("Quit Confirmation")
         reply_box.setText("Are you sure you want to quit?")
@@ -271,6 +286,8 @@ class MainUI(QMainWindow):
         reply = reply_box.exec_()
 
         if reply == QMessageBox.Yes:
+            # Stop all background processes before quitting
+            self.queue_manager.stop_all_processes()
             qApp.quit()
 
     def center_on_cursor(self, window=None):
