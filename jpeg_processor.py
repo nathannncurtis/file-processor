@@ -30,7 +30,7 @@ class PDFHandler(FileSystemEventHandler):
                 print(f"PDF detected: {event.src_path}, starting processing.")
                 self.process_pdf(event.src_path)
 
-    def wait_for_folder_stability(self, folder_path, stability_duration=10):
+    def wait_for_folder_stability(self, folder_path, stability_duration=5):
         """Ensure the folder is stable (no changes) for a specified duration before processing."""
         stable_start_time = None
 

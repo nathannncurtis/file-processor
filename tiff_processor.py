@@ -25,7 +25,7 @@ class PDFJPEGHandler(FileSystemEventHandler):
             print(f"New folder detected: {event.src_path}")
             self.process_directory(event.src_path)
 
-    def wait_for_folder_stability(self, folder_path, stability_duration=10):
+    def wait_for_folder_stability(self, folder_path, stability_duration=5):
         """Ensure the folder is stable (no changes) for a specified duration before processing."""
         stable_start_time = None
 
