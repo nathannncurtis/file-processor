@@ -1,4 +1,5 @@
 import multiprocessing
+import subprocess
 import os
 import sys
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QPushButton, QListWidget, QVBoxLayout, QWidget, QLabel, QInputDialog, QSpacerItem, QSizePolicy, QSystemTrayIcon, QMenu, QAction, qApp, QDialog, QLineEdit, QSpinBox, QDialogButtonBox, QMenuBar, QMessageBox, QDesktopWidget
@@ -30,14 +31,23 @@ class JobQueueManager(QThread):
 
     def start_job(self, profile, processor_name, watch_dir, output_dir):
         """Process jobs one by one and ensure stability."""
-        # Wait for files to be stable before starting the job
-        stable_file = self.wait_for_stability(watch_dir)
-        if stable_file:
-            process = self.manager.start_processor(profile, processor_name, watch_dir, output_dir)
-            self.active_jobs.append((profile, processor_name, process))
-            process.wait()
-            self.active_jobs.remove((profile, processor_name, process))
-            self.job_finished_signal.emit()
+        try:
+            # Determine if running as an executable
+            if getattr(sys, 'frozen', False):
+                # Use the .exe if running as a frozen app
+                exe_dir = os.path.dirname(sys.executable)
+                if processor_name.endswith('.py'):
+                    processor_name = processor_name.replace('.py', '.exe')
+                processor_path = os.path.join(exe_dir, processor_name)
+            else:
+                # Use the .py directly if running as a script
+                processor_path = processor_name
+
+            # Start the processor with subprocess
+            subprocess.Popen([processor_path, '--watch-dir', watch_dir, '--output-dir', output_dir])
+
+        except Exception as e:
+            print(f"Failed to start job for {processor_name}: {e}")
 
     def queue_job(self, profile, processor_name, watch_dir, output_dir):
         self.job_queue.append((profile, processor_name, watch_dir, output_dir))
