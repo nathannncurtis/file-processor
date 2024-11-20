@@ -69,7 +69,7 @@ class PDFHandler(FileSystemEventHandler):
 
     def process_directory(self, folder_path):
         """Process all PDFs in a stable folder."""
-        if not self.wait_for_folder_stability(folder_path):
+        if not self.wait_for_file_stability(folder_path):
             logging.warning(f"Stability check failed for folder: {folder_path}")
             return
 

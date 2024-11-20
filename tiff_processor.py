@@ -62,10 +62,10 @@ class PDFJPEGHandler(FileSystemEventHandler):
             else:
                 stable_start_time = None
                 logging.info(f"Changes detected in {file_path}. Restarting stability timer.")
-                
+
     def process_directory(self, folder_path):
         """Process each file in a stable folder."""
-        if not self.wait_for_folder_stability(folder_path):
+        if not self.wait_for_file_stability(folder_path):
             logging.warning(f"Stability check failed for folder: {folder_path}")
             return
 
