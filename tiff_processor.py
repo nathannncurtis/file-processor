@@ -1,3 +1,4 @@
+import sys
 import os
 import time
 import shutil
@@ -169,7 +170,7 @@ if __name__ == "__main__":
     # Ensure watch and output directories exist
     if not os.path.exists(watch_directory):
         print(f"Watch directory does not exist: {watch_directory}")
-        exit()
+        sys.exit()
 
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
