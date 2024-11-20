@@ -109,41 +109,42 @@ class PDFHandler(FileSystemEventHandler):
     def process_pdf(self, pdf_file):
         """Converts each page of the PDF to a JPEG file and removes the original PDF after processing."""
         try:
-            # Verify the file still exists before processing
-            if not os.path.exists(pdf_file):
-                print(f"File no longer exists: {pdf_file}. Skipping processing.")
+            # Wait for file stability before opening
+            if not self.wait_for_file_stability(pdf_file, 10):
+                print(f"File not stable: {pdf_file}")
                 return
 
+            # Open the PDF and process pages
             doc = fitz.open(pdf_file)
             total_pages = len(doc)
-            page_digits = len(str(total_pages))
-
             print(f"Processing {total_pages} pages in PDF: {pdf_file}")
+
             for page_num in range(total_pages):
-                page = doc.load_page(page_num)
-                pix = page.get_pixmap(dpi=200)
+                try:
+                    page = doc[page_num]
+                    pix = page.get_pixmap(dpi=200)
 
-                img = Image.open(io.BytesIO(pix.tobytes("ppm")))
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
-
-                output_jpeg = os.path.join(
-                    os.path.dirname(pdf_file),
-                    f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.jpg"
-                )
-                img.save(output_jpeg, "JPEG", quality=60, dpi=(200, 200))
-                print(f"Saved JPEG: {output_jpeg}")
+                    output_jpeg = os.path.join(
+                        os.path.dirname(pdf_file),
+                        f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(len(str(total_pages)))}.jpg"
+                    )
+                    
+                    img = Image.open(io.BytesIO(pix.tobytes("ppm"))).convert("RGB")
+                    img.save(output_jpeg, "JPEG", quality=60, dpi=(200, 200))
+                    print(f"Saved JPEG: {output_jpeg}")
+                except Exception as e:
+                    print(f"Error processing page {page_num + 1}: {e}")
+                    continue
 
             doc.close()
-            print(f"Finished processing PDF: {pdf_file}")
 
-            # Remove the original PDF after processing, with a verification check
+            # Remove the original PDF after successful processing
             if os.path.exists(pdf_file):
                 os.remove(pdf_file)
                 print(f"Removed original PDF: {pdf_file}")
 
         except Exception as e:
-            print(f"Error processing PDF to JPEG: {e}")
+            print(f"Error processing PDF: {e}")
 
 if __name__ == "__main__":
     args = parse_args()
