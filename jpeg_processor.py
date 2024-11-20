@@ -155,7 +155,7 @@ if __name__ == "__main__":
 
     if not os.path.exists(watch_directory):
         print(f"Watch directory does not exist: {watch_directory}")
-        exit()
+        sys.exit()
 
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
