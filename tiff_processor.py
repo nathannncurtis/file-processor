@@ -105,31 +105,54 @@ class PDFJPEGHandler(FileSystemEventHandler):
             logging.info(f"Source folder cleaned: {src_folder}")
 
     def process_pdf(self, pdf_file):
-        """Converts a PDF to TIFF pages."""
+        """Converts each page of the PDF to a TIFF file and removes the original PDF."""
         try:
+            # Ensure file stability before processing
+            if not self.wait_for_file_stability(pdf_file, 10):
+                logging.warning(f"File not stable: {pdf_file}")
+                return
+
+            if not os.path.exists(pdf_file):
+                logging.warning(f"File no longer exists: {pdf_file}. Skipping.")
+                return
+
+            # Open the PDF
             doc = fitz.open(pdf_file)
             total_pages = len(doc)
+            page_digits = len(str(total_pages))
             logging.info(f"Processing {total_pages} pages in PDF: {pdf_file}")
 
             for page_num in range(total_pages):
                 try:
+                    # Load the page and create a Pixmap
                     page = doc[page_num]
-                    pix = page.get_pixmap(dpi=200)
+                    pix = page.get_pixmap(dpi=200)  # Ensure 200 DPI
+
+                    # Convert the Pixmap to a Pillow Image
+                    img = Image.open(io.BytesIO(pix.tobytes("ppm"))).convert("L")  # Grayscale conversion
+                    img = img.point(lambda x: 0 if x < 128 else 255, "1")  # Binarize (1-bit black & white)
+
+                    # Save as TIFF with Group 4 compression
                     output_tiff = os.path.join(
                         os.path.dirname(pdf_file),
-                        f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{page_num + 1}.tif"
+                        f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.tif"
                     )
-                    img = Image.open(io.BytesIO(pix.tobytes("ppm"))).convert("L")
-                    img = img.point(lambda x: 0 if x < 128 else 255, '1')
                     img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
                     logging.info(f"Saved TIFF: {output_tiff}")
+
                 except Exception as e:
                     logging.error(f"Error processing page {page_num + 1} of {pdf_file}: {e}")
+                    continue
+
             doc.close()
-            os.remove(pdf_file)
-            logging.info(f"Removed original PDF: {pdf_file}")
+
+            # Remove the original PDF after successful processing
+            if os.path.exists(pdf_file):
+                os.remove(pdf_file)
+                logging.info(f"Removed original PDF: {pdf_file}")
+
         except Exception as e:
-            logging.error(f"Error processing PDF {pdf_file}: {e}")
+            logging.error(f"Error processing PDF to TIFF: {e}")
 
     def process_jpeg(self, jpeg_file):
         """Converts a JPEG to a TIFF."""
