@@ -86,35 +86,38 @@ class PDFHandler(FileSystemEventHandler):
             print(f"Folder merged: {src_folder} into {dest_folder}")
 
     def process_directory(self, folder_path):
-        """Move the folder, process each PDF, and then delete the original PDF after conversion."""
-        # Check if folder is stable
         if not self.wait_for_folder_stability(folder_path, stability_duration=30):
             print(f"Stability check failed for folder: {folder_path}")
             return
 
-        # Determine the destination path
         destination_folder = os.path.join(self.output_directory, os.path.basename(folder_path))
-        
-        # Move the entire folder to the output directory
         self.move_folder(folder_path, destination_folder)
-        
-        # Process any PDFs found in the destination folder
-        for file in os.listdir(destination_folder):
-            file_path = os.path.join(destination_folder, file)
-            if file.lower().endswith(".pdf"):
-                self.process_pdf(file_path)
-        
-        print(f"Completed processing of folder: {destination_folder}")
+
+        print(f"Processing moved folder: {destination_folder}")
+        if not self.wait_for_folder_stability(destination_folder, 10):
+            print(f"Folder not stable after move: {destination_folder}")
+            return
+
+        for root, _, files in os.walk(destination_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    if file.lower().endswith(".pdf"):
+                        self.process_pdf(file_path)
+                    elif file.lower().endswith((".jpeg", ".jpg")):
+                        self.process_jpeg(file_path)
+                    else:
+                        print(f"Skipping non-PDF/JPEG file: {file_path}")
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+        print(f"Completed processing for folder: {destination_folder}")
 
     def process_pdf(self, pdf_file):
-        """Converts each page of the PDF to a JPEG file and removes the original PDF after processing."""
         try:
-            # Wait for file stability before opening
             if not self.wait_for_file_stability(pdf_file, 10):
                 print(f"File not stable: {pdf_file}")
                 return
 
-            # Open the PDF and process pages
             doc = fitz.open(pdf_file)
             total_pages = len(doc)
             print(f"Processing {total_pages} pages in PDF: {pdf_file}")
@@ -128,7 +131,6 @@ class PDFHandler(FileSystemEventHandler):
                         os.path.dirname(pdf_file),
                         f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(len(str(total_pages)))}.jpg"
                     )
-                    
                     img = Image.open(io.BytesIO(pix.tobytes("ppm"))).convert("RGB")
                     img.save(output_jpeg, "JPEG", quality=60, dpi=(200, 200))
                     print(f"Saved JPEG: {output_jpeg}")
@@ -138,7 +140,6 @@ class PDFHandler(FileSystemEventHandler):
 
             doc.close()
 
-            # Remove the original PDF after successful processing
             if os.path.exists(pdf_file):
                 os.remove(pdf_file)
                 print(f"Removed original PDF: {pdf_file}")

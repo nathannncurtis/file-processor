@@ -56,22 +56,39 @@ class PDFJPEGHandler(FileSystemEventHandler):
                 print("Changes detected in folder. Restarting stability check.")
 
     def process_directory(self, folder_path):
-        """Once the folder is stable, process each file in the folder and move to output directory."""
+        """Process each file in the folder after ensuring stability."""
         if not self.wait_for_folder_stability(folder_path, stability_duration=30):
             print(f"Stability check failed for folder: {folder_path}")
             return
 
-        # Process each file in the folder
-        for file in os.listdir(folder_path):
-            file_path = os.path.join(folder_path, file)
-            if file.lower().endswith((".jpeg", ".jpg")):
-                self.process_jpeg(file_path)
-            elif file.lower().endswith(".pdf"):
-                self.process_pdf(file_path)
+        # Move the folder to the output directory
+        destination_folder = os.path.join(self.output_directory, os.path.basename(folder_path))
+        self.move_folder(folder_path, destination_folder)
 
-        # Merge the processed folder into the output directory
-        self.merge_folders(folder_path, os.path.join(self.output_directory, os.path.basename(folder_path)))
-        print(f"Folder processed and merged to output: {os.path.join(self.output_directory, os.path.basename(folder_path))}")
+        print(f"Moved folder to output directory: {destination_folder}")
+
+        # Recheck stability after move
+        if not self.wait_for_folder_stability(destination_folder, 10):
+            print(f"Folder not stable after move: {destination_folder}")
+            return
+
+        # Process files in the destination folder
+        for root, _, files in os.walk(destination_folder):
+            for file in files:
+                file_path = os.path.join(root, file)
+                try:
+                    if file.lower().endswith(".pdf"):
+                        print(f"Processing PDF: {file_path}")
+                        self.process_pdf(file_path)
+                    elif file.lower().endswith((".jpeg", ".jpg")):
+                        print(f"Processing JPEG: {file_path}")
+                        self.process_jpeg(file_path)
+                    else:
+                        print(f"Skipping unsupported file: {file_path}")
+                except Exception as e:
+                    print(f"Error processing file {file_path}: {e}")
+
+        print(f"Completed processing for folder: {destination_folder}")
 
     def merge_folders(self, src_folder, dest_folder):
         """Merge src_folder into dest_folder, handling potential filename conflicts and permissions."""
@@ -114,39 +131,37 @@ class PDFJPEGHandler(FileSystemEventHandler):
             shutil.rmtree(src_folder, ignore_errors=True)
 
     def process_pdf(self, pdf_file):
-        """Converts each page of the PDF to a TIFF file and removes the original PDF after processing."""
+        """Converts each page of a PDF to a TIFF file and removes the original PDF."""
         try:
-            # Wait for file stability before opening
+            # Ensure file stability before processing
             if not self.wait_for_file_stability(pdf_file, 10):
                 print(f"File not stable: {pdf_file}")
                 return
 
-            # Open the PDF and process pages
             doc = fitz.open(pdf_file)
             total_pages = len(doc)
             print(f"Processing {total_pages} pages in PDF: {pdf_file}")
 
-            page_digits = len(str(total_pages))  # To zero-pad filenames for multi-page PDFs
+            # Zero-padding for consistent file naming
+            page_digits = len(str(total_pages))
             for page_num in range(total_pages):
                 try:
                     page = doc[page_num]
                     pix = page.get_pixmap(dpi=200)
 
-                    # Prepare the output TIFF path
                     output_tiff = os.path.join(
                         os.path.dirname(pdf_file),
                         f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.tif"
                     )
 
-                    # Convert to an image
+                    # Convert the pixmap to an image
                     img = Image.open(io.BytesIO(pix.tobytes("ppm"))).convert("L")
                     img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Binarize the image
-
-                    # Save as TIFF
                     img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
+
                     print(f"Saved TIFF: {output_tiff}")
                 except Exception as e:
-                    print(f"Error processing page {page_num + 1}: {e}")
+                    print(f"Error processing page {page_num + 1} of {pdf_file}: {e}")
                     continue
 
             doc.close()
@@ -157,25 +172,28 @@ class PDFJPEGHandler(FileSystemEventHandler):
                 print(f"Removed original PDF: {pdf_file}")
 
         except Exception as e:
-            print(f"Error processing PDF: {e}")
+            print(f"Error processing PDF {pdf_file}: {e}")
 
     def process_jpeg(self, jpeg_file):
-        """Converts JPEG file to a TIFF file and removes the original JPEG after processing."""
+        """Converts a JPEG file to a TIFF file and removes the original JPEG."""
         try:
+            # Open and convert the JPEG to grayscale, then binarize
             img = Image.open(jpeg_file)
             img = img.convert("L")
             img = img.point(lambda x: 0 if x < 128 else 255, '1')
 
             output_tiff = os.path.join(os.path.dirname(jpeg_file), f"{os.path.splitext(os.path.basename(jpeg_file))[0]}.tif")
             img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
+
             print(f"Processed JPEG to TIFF: {output_tiff}")
 
-            # Remove the original JPEG file after processing
-            os.remove(jpeg_file)
-            print(f"Removed original JPEG: {jpeg_file}")
+            # Remove the original JPEG after processing
+            if os.path.exists(jpeg_file):
+                os.remove(jpeg_file)
+                print(f"Removed original JPEG: {jpeg_file}")
 
         except Exception as e:
-            print(f"Error processing JPEG to TIFF: {e}")
+            print(f"Error processing JPEG {jpeg_file}: {e}")
 
 if __name__ == "__main__":
     args = parse_args()
