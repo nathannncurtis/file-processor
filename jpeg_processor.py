@@ -38,34 +38,34 @@ class PDFHandler(FileSystemEventHandler):
                 logging.info(f"PDF detected, starting processing: {event.src_path}")
                 self.process_pdf(event.src_path)
 
-    def wait_for_folder_stability(self, folder_path, stability_duration=10):
-        """Ensure the folder is stable before processing."""
+    def wait_for_file_stability(self, file_path, stability_duration=10):
+        """Ensure the file is stable before processing."""
         stable_start_time = None
-
         while True:
             try:
-                initial_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+                initial_size = os.path.getsize(file_path)
             except FileNotFoundError:
-                logging.warning(f"Folder not found: {folder_path}. Retrying...")
+                logging.warning(f"File not found: {file_path}. Retrying...")
                 return False
 
-            time.sleep(5)
+            time.sleep(2)  # Check every 2 seconds
+
             try:
-                current_snapshot = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+                current_size = os.path.getsize(file_path)
             except FileNotFoundError:
-                logging.warning(f"Folder not found: {folder_path}. Retrying...")
+                logging.warning(f"File not found: {file_path}. Retrying...")
                 return False
 
-            if initial_snapshot == current_snapshot:
+            if initial_size == current_size:
                 if stable_start_time is None:
                     stable_start_time = time.time()
-                    logging.info(f"No changes detected in folder. Stability timer started.")
+                    logging.info(f"No changes detected for {file_path}. Stability timer started.")
                 elif time.time() - stable_start_time >= stability_duration:
-                    logging.info(f"Folder stable for {stability_duration} seconds: {folder_path}")
+                    logging.info(f"File stable for {stability_duration} seconds: {file_path}")
                     return True
             else:
                 stable_start_time = None
-                logging.info(f"Changes detected in folder. Restarting stability timer.")
+                logging.info(f"Changes detected in {file_path}. Restarting stability timer.")
 
     def process_directory(self, folder_path):
         """Process all PDFs in a stable folder."""
