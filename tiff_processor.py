@@ -155,43 +155,69 @@ class PDFJPEGHandler(FileSystemEventHandler):
         except Exception as e:
             logging.error(f"Error processing PDF to TIFF: {e}")
 
-    def process_jpeg(self, jpeg_file):
-            """Converts a JPEG to a TIFF and replaces the original JPEG."""
-            try:
-                # Open and process the image
-                img = Image.open(jpeg_file).convert("L")
-                img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Apply binary threshold
-                
-                # Define output path
-                output_tiff = os.path.join(
-                    os.path.dirname(jpeg_file),
-                    f"{os.path.splitext(os.path.basename(jpeg_file))[0]}.tif"
-                )
-                
-                # Save TIFF with compression
-                img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
-                logging.info(f"Processed JPEG to TIFF: {output_tiff}")
-                
-                # Validate output TIFF
-                try:
-                    with Image.open(output_tiff) as tiff_check:
-                        tiff_check.verify()
-                    # Replace the original JPEG
-                    os.remove(jpeg_file)
-                    logging.info(f"Removed original JPEG: {jpeg_file}")
-                except Exception as validate_error:
-                    logging.error(f"Validation failed for TIFF {output_tiff}: {validate_error}")
-                    # Cleanup failed TIFF
-                    os.remove(output_tiff)
-            
-            except Exception as e:
-                logging.error(f"Error processing JPEG {jpeg_file}: {e}")
+def process_jpeg(self, jpeg_file):
+    """Converts a JPEG to a TIFF and replaces the original JPEG."""
+    try:
+        # Ensure the file is stable before processing
+        if not self.wait_for_file_stability(jpeg_file, stability_duration=10):
+            logging.warning(f"File not stable: {jpeg_file}. Skipping.")
+            return
 
-    def process_jpegs_in_parallel(self, jpeg_files, max_threads=4):
-        """Processes a list of JPEG files in parallel."""
+        # Open and process the image
+        img = Image.open(jpeg_file).convert("L")
+        img = img.point(lambda x: 0 if x < 128 else 255, '1')  # Apply binary threshold
+        
+        # Define output path
+        output_tiff = os.path.join(
+            os.path.dirname(jpeg_file),
+            f"{os.path.splitext(os.path.basename(jpeg_file))[0]}.tif"
+        )
+        
+        # Save TIFF with compression
+        img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
+        logging.info(f"Processed JPEG to TIFF: {output_tiff}")
+        
+        # Validate output TIFF
+        try:
+            with Image.open(output_tiff) as tiff_check:
+                tiff_check.verify()
+            # Replace the original JPEG
+            os.remove(jpeg_file)
+            logging.info(f"Removed original JPEG: {jpeg_file}")
+        except Exception as validate_error:
+            logging.error(f"Validation failed for TIFF {output_tiff}: {validate_error}")
+            # Cleanup failed TIFF
+            if os.path.exists(output_tiff):
+                os.remove(output_tiff)
+
+    except Exception as e:
+        logging.error(f"Error processing JPEG {jpeg_file}: {e}")
+
+
+def process_jpegs_in_parallel(self, jpeg_files, max_threads=4):
+    """Processes a list of JPEG files in parallel with error handling and a final check."""
+    while jpeg_files:
         with ThreadPoolExecutor(max_threads) as executor:
-            # Pass the instance method to executor.map
-            executor.map(self.process_jpeg, jpeg_files)
+            futures = {executor.submit(self.process_jpeg, file): file for file in jpeg_files}
+            for future in futures:
+                jpeg_file = futures[future]
+                try:
+                    future.result()  # Raise exceptions from threads
+                except Exception as e:
+                    logging.error(f"Error processing {jpeg_file}: {e}")
+
+        # Double-check the folder for any unprocessed JPEG files
+        remaining_files = [
+            file for file in jpeg_files
+            if os.path.isfile(file) and file.lower().endswith((".jpeg", ".jpg"))
+        ]
+
+        if remaining_files:
+            logging.warning(f"Found {len(remaining_files)} unprocessed JPEG files. Retrying...")
+            jpeg_files = remaining_files
+        else:
+            jpeg_files = []
+            logging.info("All JPEG files have been successfully processed.")
 
 if __name__ == "__main__":
     args = parse_args()
