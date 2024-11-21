@@ -194,30 +194,43 @@ def process_jpeg(self, jpeg_file):
         logging.error(f"Error processing JPEG {jpeg_file}: {e}")
 
 
-def process_jpegs_in_parallel(self, jpeg_files, max_threads=4):
+def process_jpegs_in_parallel(self, jpeg_files, output_directory, max_threads=4):
     """Processes a list of JPEG files in parallel with error handling and a final check."""
-    while jpeg_files:
+    processed_files = set()
+    
+    while True:
+        # Filter out files already processed
+        to_process = [
+            file for file in jpeg_files
+            if file not in processed_files and os.path.isfile(file)
+        ]
+
+        if not to_process:
+            # Double-check the output directory for unprocessed JPEGs
+            remaining_files = self.get_remaining_jpegs(output_directory)
+            if not remaining_files:
+                logging.info("All JPEG files have been successfully processed.")
+                break
+            logging.warning(f"Found {len(remaining_files)} unprocessed JPEGs. Retrying...")
+            to_process = remaining_files
+
         with ThreadPoolExecutor(max_threads) as executor:
-            futures = {executor.submit(self.process_jpeg, file): file for file in jpeg_files}
+            futures = {executor.submit(self.process_jpeg, file): file for file in to_process}
             for future in futures:
                 jpeg_file = futures[future]
                 try:
                     future.result()  # Raise exceptions from threads
+                    processed_files.add(jpeg_file)
                 except Exception as e:
                     logging.error(f"Error processing {jpeg_file}: {e}")
 
-        # Double-check the folder for any unprocessed JPEG files
-        remaining_files = [
-            file for file in jpeg_files
-            if os.path.isfile(file) and file.lower().endswith((".jpeg", ".jpg"))
-        ]
-
-        if remaining_files:
-            logging.warning(f"Found {len(remaining_files)} unprocessed JPEG files. Retrying...")
-            jpeg_files = remaining_files
-        else:
-            jpeg_files = []
-            logging.info("All JPEG files have been successfully processed.")
+def get_remaining_jpegs(self, directory):
+    """Get a list of unprocessed JPEG files in the specified directory."""
+    return [
+        os.path.join(directory, file)
+        for file in os.listdir(directory)
+        if file.lower().endswith((".jpeg", ".jpg"))
+    ]
 
 if __name__ == "__main__":
     args = parse_args()
