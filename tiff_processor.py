@@ -21,7 +21,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="TIFF Processor for PDFs and JPEGs")
     parser.add_argument('--watch-dir', required=True, help='Directory to watch for new folders with PDFs and JPEGs')
     parser.add_argument('--output-dir', required=True, help='Directory to move completed folders')
-    parser.add_argument('--max-retries', type=int, default=3, help='Maximum number of retries for processing a file')
+    parser.add_argument('--max-retries', type=int, default=10, help='Maximum number of retries for processing a file')
     return parser.parse_args()
 
 class PDFJPEGHandler(FileSystemEventHandler):
@@ -150,7 +150,7 @@ class PDFJPEGHandler(FileSystemEventHandler):
         return {'processed_pages': processed_pages, 'failed_pages': failed_pages}
 
     def process_jpeg(self, jpeg_file):
-        retry_count = 10
+        retry_count = 0
         while retry_count < self.max_retries:
             try:
                 img = Image.open(jpeg_file).convert("L")
