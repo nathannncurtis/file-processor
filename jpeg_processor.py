@@ -24,8 +24,9 @@ def parse_args():
     return parser.parse_args()
 
 class PDFHandler(FileSystemEventHandler):
-    def __init__(self, output_directory):
+    def __init__(self, output_directory, max_retries=10):
         self.output_directory = output_directory
+        self.max_retries = max_retries
 
     def on_created(self, event):
         """Triggered when a new file or folder is created."""
@@ -68,7 +69,7 @@ class PDFHandler(FileSystemEventHandler):
                 logging.info(f"Changes detected in {file_path}. Restarting stability timer.")
 
     def process_directory(self, folder_path):
-        """Process all PDFs in a stable folder."""
+        """Process all PDFs in a stable folder with retries."""
         if not self.wait_for_file_stability(folder_path):
             logging.warning(f"Stability check failed for folder: {folder_path}")
             return
@@ -81,7 +82,8 @@ class PDFHandler(FileSystemEventHandler):
         for file in os.listdir(destination_folder):
             file_path = os.path.join(destination_folder, file)
             if file.lower().endswith(".pdf"):
-                self.process_pdf(file_path)
+                if not self.process_pdf(file_path):
+                    logging.error(f"Failed to process PDF: {file_path}")
             else:
                 logging.info(f"Skipping unsupported file: {file_path}")
 
@@ -107,52 +109,61 @@ class PDFHandler(FileSystemEventHandler):
             logging.info(f"Source folder cleaned: {src_folder}")
 
     def process_pdf(self, pdf_file):
-        """Converts each page of the PDF to a JPEG file and removes the original PDF."""
-        try:
-            # Ensure file stability before opening
-            if not self.wait_for_file_stability(pdf_file, 10):
-                logging.warning(f"File not stable: {pdf_file}")
-                return
+        """Converts each page of the PDF to a JPEG file with retries and removes the original PDF."""
+        for attempt in range(self.max_retries):
+            try:
+                # Ensure file stability before opening
+                if not self.wait_for_file_stability(pdf_file, 10):
+                    logging.warning(f"File not stable: {pdf_file}")
+                    return
 
-            if not os.path.exists(pdf_file):
-                logging.warning(f"File no longer exists: {pdf_file}. Skipping.")
-                return
+                if not os.path.exists(pdf_file):
+                    logging.warning(f"File no longer exists: {pdf_file}. Skipping.")
+                    return
 
-            doc = fitz.open(pdf_file)
-            total_pages = len(doc)
-            page_digits = len(str(total_pages))
-            logging.info(f"Processing {total_pages} pages in PDF: {pdf_file}")
+                doc = fitz.open(pdf_file)
+                total_pages = len(doc)
+                page_digits = len(str(total_pages))
+                logging.info(f"Processing {total_pages} pages in PDF: {pdf_file}")
 
-            for page_num in range(total_pages):
-                try:
-                    page = doc[page_num]
-                    pix = page.get_pixmap(dpi=200)  # Set 200 DPI for the Pixmap
+                for page_num in range(total_pages):
+                    try:
+                        page = doc[page_num]
+                        pix = page.get_pixmap(dpi=200)  # Set 200 DPI for the Pixmap
 
-                    # Convert Pixmap to Pillow Image for RGB conversion
-                    img = Image.open(io.BytesIO(pix.tobytes("ppm")))
-                    if img.mode != "RGB":
-                        img = img.convert("RGB")  # Ensure 24-bit RGB
+                        # Convert Pixmap to Pillow Image for RGB conversion
+                        img = Image.open(io.BytesIO(pix.tobytes("ppm")))
+                        if img.mode != "RGB":
+                            img = img.convert("RGB")  # Ensure 24-bit RGB
 
-                    # Save as JPEG with Pillow, setting quality and DPI
-                    output_jpeg = os.path.join(
-                        os.path.dirname(pdf_file),
-                        f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.jpg"
-                    )
-                    img.save(output_jpeg, "JPEG", quality=60, dpi=(200, 200))
-                    logging.info(f"Saved JPEG: {output_jpeg}")
+                        # Save as JPEG with Pillow, setting quality and DPI
+                        output_jpeg = os.path.join(
+                            os.path.dirname(pdf_file),
+                            f"{os.path.splitext(os.path.basename(pdf_file))[0]}_page_{str(page_num + 1).zfill(page_digits)}.jpg"
+                        )
+                        img.save(output_jpeg, "JPEG", quality=60, dpi=(200, 200))
+                        logging.info(f"Saved JPEG: {output_jpeg}")
 
-                except Exception as e:
-                    logging.error(f"Error processing page {page_num + 1} of {pdf_file}: {e}")
-                    continue
+                    except Exception as e:
+                        logging.error(f"Error processing page {page_num + 1} of {pdf_file}: {e}")
+                        continue
 
-            doc.close()
+                doc.close()
 
-            if os.path.exists(pdf_file):
-                os.remove(pdf_file)
-                logging.info(f"Removed original PDF: {pdf_file}")
+                if os.path.exists(pdf_file):
+                    os.remove(pdf_file)
+                    logging.info(f"Removed original PDF: {pdf_file}")
 
-        except Exception as e:
-            logging.error(f"Error processing PDF {pdf_file}: {e}")
+                return True  # Successfully processed PDF
+
+            except Exception as e:
+                logging.error(f"Attempt {attempt + 1}/{self.max_retries} failed for {pdf_file}: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(2)  # Wait before retrying
+                else:
+                    logging.error(f"Exceeded max retries ({self.max_retries}) for {pdf_file}")
+
+        return False  # Return failure if max retries are exceeded
 
 if __name__ == "__main__":
     args = parse_args()
