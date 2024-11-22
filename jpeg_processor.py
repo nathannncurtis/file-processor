@@ -169,7 +169,7 @@ if __name__ == "__main__":
     args = parse_args()
     watch_directory = args.watch_dir
     output_directory = args.output_dir
-    max_retries = 3  # Define maximum retries here
+    max_retries = 10  # Define maximum retries here
 
     if not os.path.exists(watch_directory):
         logging.error(f"Watch directory does not exist: {watch_directory}")
