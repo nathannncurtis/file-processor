@@ -169,6 +169,7 @@ if __name__ == "__main__":
     args = parse_args()
     watch_directory = args.watch_dir
     output_directory = args.output_dir
+    max_retries = 3  # Define maximum retries here
 
     if not os.path.exists(watch_directory):
         logging.error(f"Watch directory does not exist: {watch_directory}")
@@ -178,7 +179,8 @@ if __name__ == "__main__":
         os.makedirs(output_directory)
         logging.info(f"Created output directory: {output_directory}")
 
-    event_handler = PDFHandler(output_directory)
+    # Pass max_retries to PDFHandler
+    event_handler = PDFHandler(output_directory, max_retries=max_retries)
     observer = Observer()
     observer.schedule(event_handler, watch_directory, recursive=True)
     observer.start()
@@ -192,3 +194,4 @@ if __name__ == "__main__":
         logging.info("Observer stopped.")
     observer.join()
     logging.info("Observer joined and exiting.")
+
