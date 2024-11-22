@@ -25,7 +25,7 @@ def parse_args():
     return parser.parse_args()
 
 class PDFJPEGHandler(FileSystemEventHandler):
-    def __init__(self, output_directory, watch_directory, max_retries=3):
+    def __init__(self, output_directory, watch_directory, max_retries=10):
         self.output_directory = output_directory
         self.watch_directory = watch_directory
         self.max_retries = max_retries
