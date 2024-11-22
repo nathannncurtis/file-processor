@@ -33,31 +33,64 @@ class PDFJPEGHandler(FileSystemEventHandler):
     def on_created(self, event):
         if event.is_directory:
             logging.info(f"New folder detected: {event.src_path}")
+            # Optionally process the entire directory
             self.process_directory(event.src_path)
+        else:
+            logging.info(f"New file detected: {event.src_path}")
+            if self.wait_for_file_stability(event.src_path):
+                self.process_file(event.src_path)
+            else:
+                logging.warning(f"File stability check failed for: {event.src_path}")
 
-    def wait_for_folder_stability(self, folder_path, stability_duration=10):
+    def wait_for_file_stability(self, file_path, stability_duration=10):
+        """Waits until the file is stable (size doesn't change for a certain duration)."""
         stable_start_time = None
         while True:
             try:
-                initial_files = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+                initial_size = os.path.getsize(file_path)
             except FileNotFoundError:
-                logging.warning(f"Folder not found: {folder_path}. Retrying...")
+                logging.warning(f"File not found: {file_path}. Retrying...")
                 return False
 
             time.sleep(2)
             try:
-                current_files = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+                current_size = os.path.getsize(file_path)
             except FileNotFoundError:
-                logging.warning(f"Folder not found: {folder_path}. Retrying...")
+                logging.warning(f"File not found: {file_path}. Retrying...")
                 return False
 
-            if initial_files == current_files:
+            if initial_size == current_size:
                 if stable_start_time is None:
                     stable_start_time = time.time()
                 elif time.time() - stable_start_time >= stability_duration:
                     return True
             else:
                 stable_start_time = None
+
+    def process_file(self, file_path):
+        """Processes a single file (JPEG or PDF)."""
+        if file_path.lower().endswith((".jpeg", ".jpg")):
+            if self.process_jpeg(file_path):
+                try:
+                    os.remove(file_path)
+                    logging.info(f"Deleted processed JPEG: {file_path}")
+                except Exception as e:
+                    logging.error(f"Failed to delete JPEG {file_path}: {e}")
+            else:
+                logging.error(f"Failed to process JPEG: {file_path}")
+        elif file_path.lower().endswith(".pdf"):
+            pdf_result = self.process_pdf(file_path)
+            if not pdf_result['failed_pages']:
+                logging.info(f"Successfully processed PDF: {file_path}")
+                try:
+                    os.remove(file_path)
+                    logging.info(f"Deleted processed PDF: {file_path}")
+                except Exception as e:
+                    logging.error(f"Failed to delete PDF {file_path}: {e}")
+            else:
+                logging.error(f"Failed to process PDF: {file_path}")
+        else:
+            logging.info(f"Ignoring non-JPEG/PDF file: {file_path}")
 
     def process_directory(self, folder_path):
         if not self.wait_for_folder_stability(folder_path):
@@ -150,7 +183,7 @@ class PDFJPEGHandler(FileSystemEventHandler):
         return {'processed_pages': processed_pages, 'failed_pages': failed_pages}
 
     def process_jpeg(self, jpeg_file):
-        retry_count = 0
+        retry_count = 0  # Initialize retry_count to 0
         while retry_count < self.max_retries:
             try:
                 img = Image.open(jpeg_file).convert("L")
@@ -160,9 +193,11 @@ class PDFJPEGHandler(FileSystemEventHandler):
                     f"{os.path.splitext(os.path.basename(jpeg_file))[0]}.tif"
                 )
                 img.save(output_tiff, "TIFF", compression="group4", dpi=(200, 200))
+                logging.info(f"Successfully processed JPEG: {jpeg_file}")
                 return True
             except Exception as e:
                 retry_count += 1
+                logging.warning(f"Retry {retry_count}/{self.max_retries} failed for JPEG {jpeg_file}: {e}")
                 time.sleep(1)
         logging.error(f"Failed to process JPEG {jpeg_file} after {self.max_retries} retries.")
         return False
