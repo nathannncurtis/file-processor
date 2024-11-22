@@ -67,6 +67,32 @@ class PDFJPEGHandler(FileSystemEventHandler):
             else:
                 stable_start_time = None
 
+    def wait_for_folder_stability(self, folder_path, stability_duration=10):
+        """Waits until the folder's contents are stable (file sizes don't change for a certain duration)."""
+        stable_start_time = None
+        while True:
+            try:
+                initial_files = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            except FileNotFoundError:
+                logging.warning(f"Folder not found: {folder_path}. Retrying...")
+                return False
+
+            time.sleep(2)
+            try:
+                current_files = {f: os.path.getsize(os.path.join(folder_path, f)) for f in os.listdir(folder_path)}
+            except FileNotFoundError:
+                logging.warning(f"Folder not found: {folder_path}. Retrying...")
+                return False
+
+            if initial_files == current_files:
+                if stable_start_time is None:
+                    stable_start_time = time.time()
+                elif time.time() - stable_start_time >= stability_duration:
+                    return True
+            else:
+                stable_start_time = None
+
+
     def process_file(self, file_path):
         """Processes a single file (JPEG or PDF)."""
         if file_path.lower().endswith((".jpeg", ".jpg")):
